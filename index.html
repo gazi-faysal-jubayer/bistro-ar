@@ -96,30 +96,6 @@
   </div>
   
   <!-- Error message for camera issues -->
-  <div id="error">Camera not accessible. Please allow camera access and use HTTPS.</div>
-
-  <!-- A-Frame scene -->
-  <a-scene 
-    vr-mode-ui="enabled: false" 
-    embedded
-    loading-screen="enabled: false"
-    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960; facingMode: environment;">
-    
-    <!-- Define the marker handler component first -->
-    <script>
-      AFRAME.registerComponent('marker-handler', {
-        init: function () {
-          const marker = this.el;
-          const loadingDiv = document.getElementById('loading');
-          
-          marker.addEventListener('markerFound', function() {
-            console.log('Marker Found!');
-            // Update food detected message
-            updateFoodDetected();
-            
-            // Hide loading when marker is found
-            loadingDiv.style.display = 'none';
-          });
           
           marker.addEventListener('markerLost', function() {
             console.log('Marker Lost!');
@@ -128,34 +104,19 @@
       });
     </script>
     
-    <!-- Marker for Food -->
+    <!-- Marker for Burger -->
     <a-marker type="pattern" url="markers/pattern-gazi2.patt" marker-handler>
-      <!-- 3D Models Container -->
-      <a-entity id="model-container" position="0 0.5 0" rotation="0 0 0">
-        <!-- Burger model -->
-        <a-entity 
-          id="burger-model"
-          scale="0.005 0.005 0.005">
-          <a-gltf-model 
-            src="tasty_burger_with_fries/scene.gltf"
-            scale="1 1 1"
-            rotation="0 0 0">
-          </a-gltf-model>
-          <a-text value="Burger" position="0 1 0" align="center" color="white" scale="5 5 5"></a-text>
-        </a-entity>
-        
-        <!-- Pizza model -->
-        <a-entity 
-          id="pizza-model"
-          scale="0.005 0.005 0.005"
-          visible="false">
-          <a-gltf-model 
-            src="pizza/scene.gltf"
-            scale="1 1 1"
-            rotation="0 0 0">
-          </a-gltf-model>
-          <a-text value="Pizza" position="0 1 0" align="center" color="white" scale="5 5 5"></a-text>
-        </a-entity>
+      <!-- 3D Burger model -->
+      <a-entity 
+        position="0 0.5 0" 
+        scale="0.005 0.005 0.005" 
+        rotation="0 0 0">
+        <a-gltf-model 
+          src="tasty_burger_with_fries/scene.gltf"
+          scale="1 1 1"
+          rotation="0 0 0">
+        </a-gltf-model>
+        <a-text value="Burger" position="0 1 0" align="center" color="white" scale="5 5 5"></a-text>
       </a-entity>
     </a-marker>
 
@@ -169,53 +130,6 @@
     const scene = document.querySelector('a-scene');
     const errorDiv = document.getElementById('error');
     const loadingDiv = document.getElementById('loading');
-    const foodInfo = document.getElementById('food-info');
-    
-    // Current model state
-    let currentModel = 'burger';
-    
-    // Food information
-    const foodData = {
-      burger: {
-        name: 'Burger',
-        description: 'Juicy beef patty with lettuce and tomato.'
-      },
-      pizza: {
-        name: 'Pizza',
-        description: 'Delicious cheese pizza with a crispy crust.'
-      }
-    };
-    
-    // Function to change the current model
-    function changeModel(modelType) {
-      // Update current model
-      currentModel = modelType;
-      
-      // Update visibility of models
-      document.getElementById('burger-model').setAttribute('visible', modelType === 'burger');
-      document.getElementById('pizza-model').setAttribute('visible', modelType === 'pizza');
-      
-      // Update active button styling
-      document.getElementById('burger-btn').classList.toggle('active', modelType === 'burger');
-      document.getElementById('pizza-btn').classList.toggle('active', modelType === 'pizza');
-      
-      // Update food info
-      updateFoodInfo();
-      
-      console.log(`Changed to ${modelType} model`);
-    }
-    
-    // Update food info based on current model
-    function updateFoodInfo() {
-      const food = foodData[currentModel];
-      foodInfo.innerHTML = `<p><strong>${food.name}</strong>: ${food.description}</p>`;
-    }
-    
-    // Update food detected message
-    function updateFoodDetected() {
-      const food = foodData[currentModel];
-      foodInfo.innerHTML = `<p><strong>${food.name}</strong>: ${food.description}</p><p>✅ ${food.name} detected!</p>`;
-    }
 
     // Handle device orientation permission on iOS 13+
     const handleOrientation = () => {
@@ -252,18 +166,16 @@
         loadingDiv.style.display = 'none';
       });
 
-    // Check if models load
-    document.querySelectorAll('a-gltf-model').forEach(model => {
-      model.addEventListener('model-loaded', () => {
-        console.log(`Model ${model.getAttribute('src')} loaded successfully`);
-      });
-      
-      model.addEventListener('model-error', (event) => {
-        console.error(`Failed to load model ${model.getAttribute('src')}:`, event.detail);
-        errorDiv.innerHTML = 'Failed to load 3D model. Check your internet connection.';
-        errorDiv.style.display = 'block';
-        loadingDiv.style.display = 'none';
-      });
+    // Check if gltf model loads
+    const gltfModel = document.querySelector('a-gltf-model');
+    gltfModel.addEventListener('model-loaded', () => {
+      console.log('scene.gltf model loaded successfully');
+    });
+    gltfModel.addEventListener('model-error', (event) => {
+      console.error('Failed to load scene.gltf:', event.detail);
+      errorDiv.innerHTML = 'Failed to load 3D model. Check your internet connection.';
+      errorDiv.style.display = 'block';
+      loadingDiv.style.display = 'none';
     });
 
     // Log when scene is loaded
