@@ -76,6 +76,12 @@
       background: #2E7D32;
       box-shadow: 0 0 5px rgba(255,255,255,0.5);
     }
+    .download-link {
+      display: block;
+      margin-top: 10px;
+      color: yellow;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -93,9 +99,30 @@
       <button id="burger-btn" class="model-button active" onclick="changeModel('burger')">Burger</button>
       <button id="pizza-btn" class="model-button" onclick="changeModel('pizza')">Pizza</button>
     </div>
+    <a href="markers/pattern-gazi2.png" download class="download-link">Download Marker Image</a>
   </div>
   
   <!-- Error message for camera issues -->
+  <div id="error">Camera not accessible. Please allow camera access and use HTTPS.</div>
+
+  <!-- A-Frame scene -->
+  <a-scene 
+    vr-mode-ui="enabled: false" 
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960; facingMode: environment;">
+    
+    <!-- Define the marker handler component -->
+    <script>
+      AFRAME.registerComponent('marker-handler', {
+        init: function () {
+          const marker = this.el;
+          const menuDiv = document.getElementById('menu');
+          const loadingDiv = document.getElementById('loading');
+          
+          marker.addEventListener('markerFound', function() {
+            console.log('Marker Found!');
+            loadingDiv.style.display = 'none';
+          });
           
           marker.addEventListener('markerLost', function() {
             console.log('Marker Lost!');
@@ -104,10 +131,11 @@
       });
     </script>
     
-    <!-- Marker for Burger -->
+    <!-- Marker for Food Models -->
     <a-marker type="pattern" url="markers/pattern-gazi2.patt" marker-handler>
       <!-- 3D Burger model -->
       <a-entity 
+        id="burger-model"
         position="0 0.5 0" 
         scale="0.005 0.005 0.005" 
         rotation="0 0 0">
@@ -118,6 +146,21 @@
         </a-gltf-model>
         <a-text value="Burger" position="0 1 0" align="center" color="white" scale="5 5 5"></a-text>
       </a-entity>
+      
+      <!-- 3D Pizza model - initially hidden -->
+      <a-entity 
+        id="pizza-model"
+        position="0 0.5 0" 
+        scale="0.005 0.005 0.005" 
+        rotation="0 0 0"
+        visible="false">
+        <a-gltf-model 
+          src="pizza/scene.gltf"
+          scale="1 1 1"
+          rotation="0 0 0">
+        </a-gltf-model>
+        <a-text value="Pizza" position="0 1 0" align="center" color="white" scale="5 5 5"></a-text>
+      </a-entity>
     </a-marker>
 
     <!-- Camera -->
@@ -125,6 +168,26 @@
   </a-scene>
 
   <script>
+    // Model switching functionality
+    function changeModel(modelType) {
+      // Update UI buttons
+      document.getElementById('burger-btn').classList.remove('active');
+      document.getElementById('pizza-btn').classList.remove('active');
+      document.getElementById(modelType + '-btn').classList.add('active');
+      
+      // Update food info
+      const foodInfoDiv = document.getElementById('food-info');
+      if (modelType === 'burger') {
+        foodInfoDiv.innerHTML = '<p><strong>Burger</strong>: Juicy beef patty with lettuce and tomato.</p>';
+        document.getElementById('burger-model').setAttribute('visible', true);
+        document.getElementById('pizza-model').setAttribute('visible', false);
+      } else if (modelType === 'pizza') {
+        foodInfoDiv.innerHTML = '<p><strong>Pizza</strong>: Delicious pizza with cheese and toppings.</p>';
+        document.getElementById('burger-model').setAttribute('visible', false);
+        document.getElementById('pizza-model').setAttribute('visible', true);
+      }
+    }
+  
     // Debug camera, model, and marker detection
     console.log('AR.js initializing...');
     const scene = document.querySelector('a-scene');
@@ -166,16 +229,17 @@
         loadingDiv.style.display = 'none';
       });
 
-    // Check if gltf model loads
-    const gltfModel = document.querySelector('a-gltf-model');
-    gltfModel.addEventListener('model-loaded', () => {
-      console.log('scene.gltf model loaded successfully');
-    });
-    gltfModel.addEventListener('model-error', (event) => {
-      console.error('Failed to load scene.gltf:', event.detail);
-      errorDiv.innerHTML = 'Failed to load 3D model. Check your internet connection.';
-      errorDiv.style.display = 'block';
-      loadingDiv.style.display = 'none';
+    // Check if gltf models load
+    document.querySelectorAll('a-gltf-model').forEach(model => {
+      model.addEventListener('model-loaded', () => {
+        console.log('Model loaded successfully:', model.getAttribute('src'));
+      });
+      model.addEventListener('model-error', (event) => {
+        console.error('Failed to load model:', model.getAttribute('src'), event.detail);
+        errorDiv.innerHTML = 'Failed to load 3D model. Check your internet connection.';
+        errorDiv.style.display = 'block';
+        loadingDiv.style.display = 'none';
+      });
     });
 
     // Log when scene is loaded
