@@ -1,51 +1,12 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AR Restaurant Menu</title>
-  <!-- Include A-Frame and AR.js libraries -->
+  <!-- Include A-Frame and AR.js libraries properly -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/jeromeetienne/AR.js@2.3.1/aframe/build/aframe-ar.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <style>
     body {
       margin: 0;
@@ -61,6 +22,7 @@
       padding: 10px;
       border-radius: 5px;
       max-width: 300px;
+      z-index: 100;
     }
     #menu h1 {
       font-size: 1.2em;
@@ -69,6 +31,17 @@
     #menu p {
       font-size: 0.9em;
       margin: 5px 0;
+    }
+    #error {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: red;
+      color: white;
+      padding: 10px;
+      display: none;
+      z-index: 100;
     }
   </style>
 </head>
@@ -79,19 +52,48 @@
     <p>Scan the Hiro marker to view a 3D burger!</p>
     <p><strong>Burger</strong>: Juicy beef patty with lettuce and tomato.</p>
   </div>
+  <!-- Error message for camera issues -->
+  <div id="error">Camera not accessible. Please allow camera access and use HTTPS.</div>
 
   <!-- A-Frame scene -->
-  <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+  <a-scene 
+    vr-mode-ui="enabled: false" 
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+    
+    <!-- Define the marker handler component first -->
+    <script>
+      AFRAME.registerComponent('marker-handler', {
+        init: function () {
+          const marker = this.el;
+          const menuDiv = document.getElementById('menu');
+          
+          marker.addEventListener('markerFound', function() {
+            console.log('Marker Found!');
+            menuDiv.innerHTML += '<p>Burger detected!</p>';
+          });
+          
+          marker.addEventListener('markerLost', function() {
+            console.log('Marker Lost!');
+          });
+        }
+      });
+    </script>
+    
     <!-- Marker for Burger -->
-    <a-marker preset="hiro">
-      <!-- 3D model for burger (replace src with your .gltf/.glb URL) -->
-      <a-gltf-model 
-        src="scene.gltf" 
+    <a-marker preset="hiro" marker-handler>
+      <!-- 3D Burger model -->
+      <a-entity 
         position="0 0.5 0" 
-        scale="0.1 0.1 0.1" 
+        scale="0.01 0.01 0.01" 
         rotation="0 0 0">
-        <a-text value="Burger" position="0 1 0" align="center" color="white"></a-text>
-      </a-gltf-model>
+        <a-gltf-model 
+          src="tasty_burger_with_fries/scene.gltf"
+          scale="1 1 1"
+          rotation="0 0 0">
+        </a-gltf-model>
+        <a-text value="Burger" position="0 1 0" align="center" color="white" scale="5 5 5"></a-text>
+      </a-entity>
     </a-marker>
 
     <!-- Camera -->
@@ -99,18 +101,37 @@
   </a-scene>
 
   <script>
-    // Basic interaction: Update menu text when marker is detected
-    AFRAME.registerComponent('markerhandler', {
-      init: function () {
-        this.el.addEventListener('markerFound', () => {
-          const menuDiv = document.getElementById('menu');
-          menuDiv.innerHTML += '<p>Burger detected!</p>';
-        });
-      }
+    // Debug camera, model, and marker detection
+    console.log('AR.js initializing...');
+    const scene = document.querySelector('a-scene');
+    const errorDiv = document.getElementById('error');
+
+    // Check if camera is accessible
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        console.log('Camera access granted');
+        stream.getTracks().forEach(track => track.stop()); // Stop stream after check
+      })
+      .catch(err => {
+        console.error('Camera access failed:', err);
+        errorDiv.style.display = 'block';
+      });
+
+    // Check if gltf model loads
+    const gltfModel = document.querySelector('a-gltf-model');
+    gltfModel.addEventListener('model-loaded', () => {
+      console.log('scene.gltf model loaded successfully');
+    });
+    gltfModel.addEventListener('model-error', (event) => {
+      console.error('Failed to load scene.gltf:', event.detail);
+      // Check if the path is correct
+      console.error('Make sure the path "tasty_burger_with_fries/scene.gltf" is correct');
     });
 
-    // Attach markerhandler to marker
-    document.querySelector('a-marker').setAttribute('markerhandler', '');
+    // Log when scene is loaded
+    scene.addEventListener('loaded', () => {
+      console.log('A-Frame scene loaded');
+    });
   </script>
 </body>
 </html>
